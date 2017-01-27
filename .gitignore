@@ -1,0 +1,9 @@
+Include
+Lib
+requests*
+Scripts
+slacker*
+tcl
+lambda_function.zip
+pip-selfcheck
+SLACK_BOT_API_TOKEN
