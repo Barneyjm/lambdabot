@@ -41,11 +41,15 @@ import boto3
 import json
 import logging
 import os
+import time
 
 from base64 import b64decode
 from urlparse import parse_qs
 
 from slacker import Slacker
+import requests
+import datetime
+
 
 ENCRYPTED_EXPECTED_TOKEN = os.environ['kmsEncryptedToken']
 
@@ -58,11 +62,67 @@ logger.setLevel(logging.INFO)
 with open(os.path.join(os.path.dirname(__file__), 'SLACK_BOT_API_TOKEN')) as f:
     bot_api_token = f.read().strip()
 
+with open(os.path.join(os.path.dirname(__file__), 'PAGERDUTY_API_KEY')) as f:
+    pagerduty_api_token = f.read().strip()
+
 slack = Slacker(bot_api_token)
 
-def slack_it(text):
-  slack.chat.post_message(channel="#test", text=text, as_user=True)
-  return {'text':text}
+
+def next_weekday(d, weekday):
+    days_ahead = weekday - d.weekday()
+    if days_ahead <= 0: # Target day already happened this week
+        days_ahead += 7
+    return d + datetime.timedelta(days_ahead)
+
+def status(src):
+  r = requests.get(src)
+  return "Status for " + str(src) + ": " + str(r.status_code)
+
+
+def on_call():
+  #returns pager
+  today = datetime.datetime.today()
+  next_monday = next_weekday(today, 0) # 0 = Monday, 1=Tuesday, 2=Wednesday...
+
+  day_filter = "since="+str(today)+"&"+"until="+str(next_monday)
+
+  team_id = "PRM9TER"
+  headers = {
+              "Accept": "application/vnd.pagerduty+json;version=2",
+              "Authorization": "Token token="+pagerduty_api_token
+            }
+  url = "https://api.pagerduty.com/schedules/"+team_id+"/users?"+day_filter
+
+  r = requests.get(url, headers=headers)
+  on = json.loads(r.text)
+
+  users = on['users'][0]['name']
+
+  return "On-Call: " + users + " for AM until " + str(next_monday.strftime("%A, %B %d, %Y.") + " :phone:")
+
+
+
+
+def parse_command(command_text):
+  split_command = command_text.split()
+  if split_command[0] == "on-call":
+    #on_call on-call
+    return on_call()
+  elif split_command[0] == "status":
+    try:
+      src = split_command[1]
+      return status(src)
+    except IndexError:
+      return "That's not a valid source: " + src
+  else:
+    return "I don't recognize that command. Try /media [ on-call | status ]"
+
+
+
+def slack_it(channel, text):
+  slack.chat.post_message(channel=channel, text=text, as_user=True)
+  #return {"response_type": "in_channel"}
+  return {"body": "I got your message."}
 
 
 def respond(err, res=None):
@@ -87,4 +147,6 @@ def lambda_handler(event, context):
     channel = params['channel_name'][0]
     command_text = params['text'][0]
 
-    return slack_it(command_text)
+    output = parse_command(command_text)
+
+    return slack_it(channel, output)

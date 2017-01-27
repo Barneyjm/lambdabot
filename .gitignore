@@ -7,3 +7,15 @@ tcl
 lambda_function.zip
 pip-selfcheck
 SLACK_BOT_API_TOKEN
+PAGERDUTY_API_KEY
+appdirs-1.4.0.dist-info/
+appdirs.py
+appdirs.pyc
+packaging-16.8.dist-info/
+packaging/
+pyparsing-2.1.10.dist-info/
+pyparsing.py
+pyparsing.pyc
+six-1.10.0.dist-info/
+six.py
+six.pyc
