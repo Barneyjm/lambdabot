@@ -68,23 +68,28 @@ with open(os.path.join(os.path.dirname(__file__), 'PAGERDUTY_API_KEY')) as f:
 slack = Slacker(bot_api_token)
 
 
+def status(src):
+  r = requests.get(src)
+  return "Status for " + str(src) + ": " + str(r.status_code)
+
 def next_weekday(d, weekday):
     days_ahead = weekday - d.weekday()
     if days_ahead <= 0: # Target day already happened this week
         days_ahead += 7
     return d + datetime.timedelta(days_ahead)
-
-def status(src):
-  r = requests.get(src)
-  return "Status for " + str(src) + ": " + str(r.status_code)
-
+    
+def this_weekday(d, weekday):
+    days_ahead = weekday - d.weekday()
+    return d + datetime.timedelta(days_ahead)
 
 def on_call():
   #returns pager
   today = datetime.datetime.today()
-  next_monday = next_weekday(today, 0) # 0 = Monday, 1=Tuesday, 2=Wednesday...
+  next_monday = next_weekday(today, 0)
+  this_tuesday = this_weekday(today, 1) # 0 = Monday, 1=Tuesday, 2=Wednesday...
+  this_wednesday = this_weekday(today, 2)
 
-  day_filter = "since="+str(today)+"&"+"until="+str(next_monday)
+  day_filter = "since="+str(this_tuesday)+"&"+"until="+str(this_wednesday)
 
   team_id = "PRM9TER"
   headers = {
@@ -99,8 +104,6 @@ def on_call():
   users = on['users'][0]['name']
 
   return "On-Call: " + users + " for AM until " + str(next_monday.strftime("%A, %B %d, %Y.") + " :phone:")
-
-
 
 
 def parse_command(command_text):
